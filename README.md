@@ -1,6 +1,6 @@
 # tps-hpc-engine
 
-> High-performance C++/MPI/OpenMP engine for Transient Plane Source thermal analysis — 190× speedup over Python baseline
+> High-performance C++/MPI/OpenMP engine for Transient Plane Source thermal analysis
 
 ## Overview
 
@@ -12,14 +12,10 @@ The analysis engine is also exposed to Python via **pybind11**, making it a drop
 
 ## Performance
 
-| Implementation | Time (1M samples) | Speedup |
-|---|---|---|
-| Python NumPy (baseline) | ~48 min | 1× |
-| C++ serial | ~6 min | 8× |
-| C++ OpenMP (8 cores) | ~56 s | 52× |
-| C++ MPI+OpenMP (4 nodes × 8 cores) | ~15 s | 190× |
-
-> Measured on: Apple M2 Pro (10-core), Open MPI 5.x
+> TODO: Benchmark results will be added after implementation is complete.
+>
+> Planned measurements: Python NumPy baseline → C++ serial → OpenMP → MPI+OpenMP
+> Environment: Apple M2 Pro (10-core), Open MPI 5.x
 
 ---
 
