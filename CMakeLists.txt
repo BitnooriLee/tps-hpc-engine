@@ -17,7 +17,14 @@ option(ENABLE_MPI    "Enable MPI for Monte Carlo UQ" ON)
 option(ENABLE_PYBIND "Enable Python bindings (pybind11)" OFF)
 
 # OpenMP
+# AppleClang does not bundle OpenMP — point to Homebrew libomp on macOS
 if(ENABLE_OPENMP)
+  if(APPLE)
+    set(OpenMP_CXX_FLAGS "-Xpreprocessor -fopenmp")
+    set(OpenMP_CXX_LIB_NAMES "omp")
+    set(OpenMP_omp_LIBRARY "/opt/homebrew/opt/libomp/lib/libomp.dylib")
+    include_directories("/opt/homebrew/opt/libomp/include")
+  endif()
   find_package(OpenMP REQUIRED)
 endif()
 
@@ -37,22 +44,24 @@ add_executable(tps_serial
   src/serial/optimization.cpp
 )
 
-# 2. OpenMP version
+# 2. OpenMP version (shares serial residual primitives, adds OMP exhaustive search)
 add_executable(tps_openmp
   src/openmp/main.cpp
   src/openmp/residual_omp.cpp
   src/openmp/optimization_omp.cpp
+  src/serial/residual.cpp
+  src/serial/optimization.cpp
 )
 if(ENABLE_OPENMP)
   target_link_libraries(tps_openmp PRIVATE OpenMP::OpenMP_CXX)
 endif()
 
-# 3. MPI Monte Carlo UQ
-add_executable(tps_mpi_uq
-  src/mpi/main_uq.cpp
-  src/mpi/monte_carlo.cpp
-)
+# 3. MPI Monte Carlo UQ (enabled only when MPI is available and sources are ready)
 if(ENABLE_MPI)
+  add_executable(tps_mpi_uq
+    src/mpi/main_uq.cpp
+    src/mpi/monte_carlo.cpp
+  )
   target_link_libraries(tps_mpi_uq PRIVATE MPI::MPI_CXX)
   if(ENABLE_OPENMP)
     target_link_libraries(tps_mpi_uq PRIVATE OpenMP::OpenMP_CXX)
@@ -60,4 +69,11 @@ if(ENABLE_MPI)
 endif()
 
 # --- Benchmarks ---
-add_executable(bench_residual benchmarks/bench_residual.cpp src/serial/residual.cpp)
+add_executable(bench_residual
+  benchmarks/bench_residual.cpp
+  src/serial/residual.cpp
+  src/openmp/residual_omp.cpp
+)
+if(ENABLE_OPENMP)
+  target_link_libraries(bench_residual PRIVATE OpenMP::OpenMP_CXX)
+endif()
