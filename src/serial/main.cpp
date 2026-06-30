@@ -1,73 +1,49 @@
 //  tps_serial — serial baseline
 //
-//  Usage:
-//    ./tps_serial --input data/sample.csv
-//    ./tps_serial --input data/sample.csv --min-fraction 0.3
+//  Generates synthetic TPS (sqrt_t, dT) data in memory and runs the
+//  best-window search. No file I/O — mirrors the real use case where
+//  Python passes float arrays directly via pybind11 after parsing the
+//  EXP:RES? TCP response from Hot Disk Software.
 //
-//  CSV format (no header):  sqrt_t,dT
-//    0.123,0.045
-//    0.234,0.089
-//    ...
-//
-//  Output: best window [start, end], verdict, RMSE, wall-clock time (µs)
+//  Usage:  ./tps_serial [--n 200] [--min-fraction 0.30]
 
 #include <tps/residual.hpp>
 #include <tps/optimization.hpp>
 
 #include <chrono>
-#include <fstream>
+#include <cmath>
 #include <iostream>
-#include <sstream>
-#include <stdexcept>
 #include <string>
 #include <vector>
 
-static void usage(const char* prog) {
-    std::cerr << "Usage: " << prog << " --input <file.csv> [--min-fraction 0.30]\n";
-}
 
 static std::pair<std::vector<double>, std::vector<double>>
-load_csv(const std::string& path) {
-    std::ifstream f(path);
-    if (!f) throw std::runtime_error("Cannot open: " + path);
-
-    std::vector<double> xs, ys;
-    std::string line;
-    while (std::getline(f, line)) {
-        if (line.empty() || line[0] == '#') continue;
-        std::replace(line.begin(), line.end(), ',', ' ');
-        std::istringstream ss(line);
-        double x, y;
-        if (ss >> x >> y) { xs.push_back(x); ys.push_back(y); }
+generate_tps_data(int n) {
+    // Simulate: dT ≈ slope × sqrt_t + intercept + small noise
+    // Matches the linear model Hot Disk fits in the TPS method.
+    std::vector<double> xs(n), ys(n);
+    for (int i = 0; i < n; ++i) {
+        double t   = 0.05 + i * 0.01;
+        double noise = 0.001 * std::sin(i * 1.7 + 0.3);
+        xs[i] = t;
+        ys[i] = 0.45 * t + 0.01 + noise;
     }
     return {xs, ys};
 }
 
 int main(int argc, char** argv) {
-    std::string input_path;
+    int    n            = 200;
     double min_fraction = 0.30;
 
     for (int i = 1; i < argc; ++i) {
         std::string arg(argv[i]);
-        if ((arg == "--input" || arg == "-i") && i+1 < argc)
-            input_path = argv[++i];
-        else if (arg == "--min-fraction" && i+1 < argc)
-            min_fraction = std::stod(argv[++i]);
-        else if (arg == "--help" || arg == "-h") { usage(argv[0]); return 0; }
+        if (arg == "--n" && i+1 < argc)            n            = std::stoi(argv[++i]);
+        if (arg == "--min-fraction" && i+1 < argc) min_fraction = std::stod(argv[++i]);
     }
 
-    if (input_path.empty()) { usage(argv[0]); return 1; }
-
-    std::vector<double> x, y;
-    try {
-        auto [xx, yy] = load_csv(input_path);
-        x = xx; y = yy;
-    } catch (const std::exception& e) {
-        std::cerr << "Error loading CSV: " << e.what() << "\n";
-        return 1;
-    }
-
-    std::cout << "Loaded " << x.size() << " points from " << input_path << "\n";
+    auto [x, y] = generate_tps_data(n);
+    std::cout << "Generated " << n << " synthetic TPS points (in-memory)\n"
+              << "(Real use: Python parses EXP:RES? response → passes arrays via pybind11)\n";
 
     auto t0 = std::chrono::high_resolution_clock::now();
 

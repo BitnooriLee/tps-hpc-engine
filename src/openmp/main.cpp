@@ -1,17 +1,15 @@
 //  tps_openmp — exhaustive parallel window search
 //
-//  Usage:
-//    OMP_NUM_THREADS=8 ./tps_openmp --input data/sample.csv
+//  Generates synthetic TPS data in memory, then runs serial and OpenMP
+//  back-to-back and prints speedup.
 //
-//  Runs both serial and OpenMP back-to-back and prints speedup.
+//  Usage:  OMP_NUM_THREADS=8 ./tps_openmp [--n 200]
 
 #include <tps/residual.hpp>
 
 #include <chrono>
-#include <fstream>
+#include <cmath>
 #include <iostream>
-#include <sstream>
-#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -20,17 +18,12 @@
 #endif
 
 static std::pair<std::vector<double>, std::vector<double>>
-load_csv(const std::string& path) {
-    std::ifstream f(path);
-    if (!f) throw std::runtime_error("Cannot open: " + path);
-    std::vector<double> xs, ys;
-    std::string line;
-    while (std::getline(f, line)) {
-        if (line.empty() || line[0] == '#') continue;
-        std::replace(line.begin(), line.end(), ',', ' ');
-        std::istringstream ss(line);
-        double x, y;
-        if (ss >> x >> y) { xs.push_back(x); ys.push_back(y); }
+generate_tps_data(int n) {
+    std::vector<double> xs(n), ys(n);
+    for (int i = 0; i < n; ++i) {
+        double t = 0.05 + i * 0.01;
+        xs[i] = t;
+        ys[i] = 0.45 * t + 0.01 + 0.001 * std::sin(i * 1.7 + 0.3);
     }
     return {xs, ys};
 }
@@ -46,21 +39,17 @@ static void print_result(const char* label, const tps::BestWindowResult& bw, dou
 }
 
 int main(int argc, char** argv) {
-    std::string input_path;
+    int    n            = 200;
     double min_fraction = 0.30;
 
     for (int i = 1; i < argc; ++i) {
         std::string arg(argv[i]);
-        if ((arg == "--input" || arg == "-i") && i+1 < argc) input_path = argv[++i];
-        else if (arg == "--min-fraction" && i+1 < argc) min_fraction = std::stod(argv[++i]);
-    }
-    if (input_path.empty()) {
-        std::cerr << "Usage: " << argv[0] << " --input <file.csv>\n";
-        return 1;
+        if (arg == "--n" && i+1 < argc)            n            = std::stoi(argv[++i]);
+        if (arg == "--min-fraction" && i+1 < argc) min_fraction = std::stod(argv[++i]);
     }
 
-    auto [x, y] = load_csv(input_path);
-    std::cout << "Loaded " << x.size() << " points from " << input_path << "\n";
+    auto [x, y] = generate_tps_data(n);
+    std::cout << "Generated " << n << " synthetic TPS points (in-memory)\n";
 
 #ifdef _OPENMP
     std::cout << "OpenMP threads: " << omp_get_max_threads() << "\n";
