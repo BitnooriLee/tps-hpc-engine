@@ -33,6 +33,17 @@ if(ENABLE_MPI)
   find_package(MPI REQUIRED)
 endif()
 
+# pybind11  (pip install pybind11, or: brew install pybind11)
+if(ENABLE_PYBIND)
+  execute_process(
+    COMMAND python3 -m pybind11 --cmakedir
+    OUTPUT_VARIABLE pybind11_DIR
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    ERROR_QUIET
+  )
+  find_package(pybind11 CONFIG REQUIRED HINTS "${pybind11_DIR}")
+endif()
+
 include_directories(include)
 
 # --- Targets ---
@@ -56,15 +67,31 @@ if(ENABLE_OPENMP)
   target_link_libraries(tps_openmp PRIVATE OpenMP::OpenMP_CXX)
 endif()
 
-# 3. MPI Monte Carlo UQ (enabled only when MPI is available and sources are ready)
+# 3. MPI Monte Carlo UQ
 if(ENABLE_MPI)
   add_executable(tps_mpi_uq
     src/mpi/main_uq.cpp
     src/mpi/monte_carlo.cpp
+    src/serial/residual.cpp
+    src/serial/optimization.cpp
   )
   target_link_libraries(tps_mpi_uq PRIVATE MPI::MPI_CXX)
   if(ENABLE_OPENMP)
     target_link_libraries(tps_mpi_uq PRIVATE OpenMP::OpenMP_CXX)
+  endif()
+endif()
+
+# 4. Python bindings (pybind11)
+if(ENABLE_PYBIND)
+  pybind11_add_module(tps_engine
+    python/binding.cpp
+    src/serial/residual.cpp
+    src/serial/optimization.cpp
+    src/openmp/residual_omp.cpp
+  )
+  target_include_directories(tps_engine PRIVATE include)
+  if(ENABLE_OPENMP)
+    target_link_libraries(tps_engine PRIVATE OpenMP::OpenMP_CXX)
   endif()
 endif()
 
