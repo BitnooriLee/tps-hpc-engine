@@ -1,0 +1,58 @@
+========================================================
+  TPS HPC Engine — macOS sample profiling report
+  Sat Jul  4 17:52:31 CEST 2026
+  Machine: arm64  Apple M3
+========================================================
+
+── tps_serial_bench ──────────────────────────────────────────
+    3582 Thread_67032014   DispatchQueue_1: com.apple.main-thread  (serial)
+        3582 ???  (in bash)  load address 0x100878000 + 0x1c28  [0x100879c28]
+          3582 ???  (in bash)  load address 0x100878000 + 0x1e494  [0x100896494]
+            3582 ???  (in bash)  load address 0x100878000 + 0x1e940  [0x100896940]
+              3582 ???  (in bash)  load address 0x100878000 + 0x1f08c  [0x10089708c]
+                3582 ???  (in bash)  load address 0x100878000 + 0x20528  [0x100898528]
+                  3582 ???  (in bash)  load address 0x100878000 + 0x227a0  [0x10089a7a0]
+                    3582 ???  (in bash)  load address 0x100878000 + 0x1f138  [0x100897138]
+                      3582 ???  (in bash)  load address 0x100878000 + 0x1efa4  [0x100896fa4]
+                        3582 ???  (in bash)  load address 0x100878000 + 0x21c18  [0x100899c18]
+                          3582 ???  (in bash)  load address 0x100878000 + 0x1e940  [0x100896940]
+                            3582 ???  (in bash)  load address 0x100878000 + 0x1efa4  [0x100896fa4]
+                              3582 ???  (in bash)  load address 0x100878000 + 0x21c18  [0x100899c18]
+                                3582 ???  (in bash)  load address 0x100878000 + 0x1e940  [0x100896940]
+                                  3582 ???  (in bash)  load address 0x100878000 + 0x1efa4  [0x100896fa4]
+                                    3582 ???  (in bash)  load address 0x100878000 + 0x21c18  [0x100899c18]
+                                      3582 ???  (in bash)  load address 0x100878000 + 0x1e940  [0x100896940]
+                                        3582 ???  (in bash)  load address 0x100878000 + 0x1efa4  [0x100896fa4]
+                                          3582 ???  (in bash)  load address 0x100878000 + 0x21c18  [0x100899c18]
+                                            3582 ???  (in bash)  load address 0x100878000 + 0x1e940  [0x100896940]
+
+── tps_omp_bench ──────────────────────────────────────────
+    3571 Thread_67032251   DispatchQueue_1: com.apple.main-thread  (serial)
+        3571 ???  (in bash)  load address 0x100878000 + 0x1c28  [0x100879c28]
+          3571 ???  (in bash)  load address 0x100878000 + 0x1e494  [0x100896494]
+            3571 ???  (in bash)  load address 0x100878000 + 0x1e940  [0x100896940]
+              3571 ???  (in bash)  load address 0x100878000 + 0x1f08c  [0x10089708c]
+                3571 ???  (in bash)  load address 0x100878000 + 0x20528  [0x100898528]
+                  3571 ???  (in bash)  load address 0x100878000 + 0x227a0  [0x10089a7a0]
+                    3571 ???  (in bash)  load address 0x100878000 + 0x1f138  [0x100897138]
+                      3571 ???  (in bash)  load address 0x100878000 + 0x1efa4  [0x100896fa4]
+                        3571 ???  (in bash)  load address 0x100878000 + 0x21c18  [0x100899c18]
+                          3571 ???  (in bash)  load address 0x100878000 + 0x1e940  [0x100896940]
+                            3571 ???  (in bash)  load address 0x100878000 + 0x1efa4  [0x100896fa4]
+                              3571 ???  (in bash)  load address 0x100878000 + 0x21c18  [0x100899c18]
+                                3571 ???  (in bash)  load address 0x100878000 + 0x1e940  [0x100896940]
+                                  3571 ???  (in bash)  load address 0x100878000 + 0x1efa4  [0x100896fa4]
+                                    3571 ???  (in bash)  load address 0x100878000 + 0x21c18  [0x100899c18]
+                                      3571 ???  (in bash)  load address 0x100878000 + 0x1e940  [0x100896940]
+                                        3571 ???  (in bash)  load address 0x100878000 + 0x1efa4  [0x100896fa4]
+                                          3571 ???  (in bash)  load address 0x100878000 + 0x21c18  [0x100899c18]
+                                            3571 ???  (in bash)  load address 0x100878000 + 0x1e940  [0x100896940]
+
+── Hardware (sysctl) ──────────────────────────────────
+  Physical CPUs  : 8
+  Logical CPUs   : 8
+  L1d cache      : 65536 bytes
+  L2  cache      : 4194304 bytes
+  L3  cache      :  bytes
+  Cache line     : 128 bytes
+  Memory BW      : ~200 GB/s (Apple M2 Pro, unified memory)

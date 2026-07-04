@@ -1,0 +1,31 @@
+========================================================
+  TPS HPC Engine — Per-function timing profile
+  N_data=200  win=[10,150] n=141
+  reps=2000  (search reps: 100 / 20)
+========================================================
+  Function                                 mean        min       max
+  ---------------------------------------------------------------------------
+  linear_fit                             0.31 us     0.25 us     0.58 us   3.6154 GFLOP/s
+  runs_test                              1.56 us     1.04 us    53.75 us   0.4511 GFLOP/s
+  durbin_watson                          0.34 us     0.29 us     0.46 us   1.2490 GFLOP/s
+  spearman_corr                          1.26 us     1.08 us     3.79 us   1.5719 GFLOP/s
+  pearson_corr                           0.44 us     0.38 us     0.58 us   2.5719 GFLOP/s
+  ---------------------------------------------------------------------------
+  evaluate_window                        4.63 us     2.67 us    74.92 us   1.6747 GFLOP/s
+  ---------------------------------------------------------------------------
+  find_best_window_serial              284.16 us   220.12 us   658.88 us   5.8065 GFLOP/s
+  find_best_window_exhaustive        39740.14 us 39151.71 us 45085.29 us   4.4592 GFLOP/s
+  find_best_window_omp                6688.84 us  6386.62 us  8439.25 us   26.4934 GFLOP/s
+========================================================
+
+  Speedup summary
+  Serial smart vs exhaustive : x139.8
+  OpenMP vs serial exhaustive: x5.9
+
+  evaluate_window breakdown (% of total)
+  linear_fit   : 6.7 %
+  runs_test    : 33.8 %
+  durbin_watson: 7.3 %
+  spearman_corr: 27.1 %
+  pearson_corr : 9.5 %
+  overhead     : 15.6 %

@@ -1,0 +1,47 @@
+==============================================================
+  TPS HPC Engine — Theoretical Cache Analysis
+  2026-07-04 17:52
+==============================================================
+
+  Chip          : Apple M3
+  Physical CPUs : 8  Logical: 8
+  L1d cache     : 65.5 KB
+  L2  cache     : 4.2 MB
+  L3  cache     : 25.2 MB
+  Cache line    : 128 bytes
+  Mem bandwidth : 200 GB/s (unified, published)
+
+  ── Working-set analysis ──────────────────────────────
+  N data points : 200   (x[], y[] = 3.2 KB total)
+  Window size   : 61 points (typical best window)
+  Passes/eval   : 19 × 61 doubles = 9.3 KB per evaluate_window()
+
+  Window working set fits L1d cache : YES ✓
+  Window working set fits L2 cache  : YES ✓
+  Full dataset   fits L1d cache     : YES ✓
+  Full dataset   fits L2 cache      : YES ✓
+
+  ── Search volume ─────────────────────────────────────
+  Exhaustive evaluations : 8,515
+  Exhaustive total data  : 79.0 MB
+  Smart-search evals     : ~150
+  Smart-search total data: 1.4 MB
+
+  ── Arithmetic intensity ──────────────────────────────
+  FLOPs / evaluate_window: ~55 × 61 = 3,355
+  Bytes read / eval      : 19 × 61 × 8 = 9,272
+  Arithmetic intensity   : 0.362  FLOPs/byte
+
+  ── Roofline position ─────────────────────────────────
+  Ridge point (peak FLOP/s ÷ BW) ≈ 13.0 FLOPs/byte
+  AI=0.362 < ridge → MEMORY BOUND
+  Bandwidth-limited ceiling: 72.4 GFLOP/s
+
+  Implication:
+  • Each evaluate_window() call is bandwidth-limited.
+  • Window slices (~500 B) fit entirely in L1 cache → re-use is key.
+  • OpenMP helps by distributing independent window pairs across cores;
+    each core streams its own subset → aggregate bandwidth scales well.
+  • Smart search wins by drastically reducing the number of evaluations
+    (~150 vs ~16 000), not by being faster per evaluation.
+==============================================================

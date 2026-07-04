@@ -12,9 +12,17 @@ endif()
 set(CMAKE_CXX_FLAGS_RELEASE "-O3 -march=native")
 
 # Options
-option(ENABLE_OPENMP "Enable OpenMP parallelisation" ON)
-option(ENABLE_MPI    "Enable MPI for Monte Carlo UQ" ON)
-option(ENABLE_PYBIND "Enable Python bindings (pybind11)" OFF)
+option(ENABLE_OPENMP    "Enable OpenMP parallelisation" ON)
+option(ENABLE_MPI       "Enable MPI for Monte Carlo UQ" ON)
+option(ENABLE_PYBIND    "Enable Python bindings (pybind11)" OFF)
+option(ENABLE_PROFILING "Add -g -fno-omit-frame-pointer for sample/perf profiling" OFF)
+
+if(ENABLE_PROFILING)
+  # Use O2 (not O3/march=native) to keep symbols readable; keep frame pointers
+  # for macOS `sample` and Linux `perf` call-graph unwinding.
+  set(CMAKE_CXX_FLAGS_RELEASE "-O2 -g -fno-omit-frame-pointer")
+  message(STATUS "Profiling build: -O2 -g -fno-omit-frame-pointer")
+endif()
 
 # OpenMP
 # AppleClang does not bundle OpenMP — point to Homebrew libomp on macOS
@@ -103,4 +111,15 @@ add_executable(bench_residual
 )
 if(ENABLE_OPENMP)
   target_link_libraries(bench_residual PRIVATE OpenMP::OpenMP_CXX)
+endif()
+
+# --- Profiling: per-function timing probe ---
+add_executable(bench_profile
+  src/profiling/bench_profile.cpp
+  src/serial/residual.cpp
+  src/serial/optimization.cpp
+  src/openmp/residual_omp.cpp
+)
+if(ENABLE_OPENMP)
+  target_link_libraries(bench_profile PRIVATE OpenMP::OpenMP_CXX)
 endif()

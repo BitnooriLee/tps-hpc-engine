@@ -1,0 +1,20 @@
+=================================================================
+  TPS HPC Engine — Roofline Model Data
+  2026-07-04 18:06
+=================================================================
+  Chip          : Apple M3 (8-core)
+  Peak FP64     : 2.6 TFLOP/s
+  DRAM BW       : 200 GB/s
+  Ridge point   : 13.0 FLOPs/byte
+  True AI       : 0.362 FLOPs/byte  (all kernels — MEMORY BOUND)
+
+  Kernel                             Time(ms)    GFLOP/s   vs exhaust
+  ------------------------------------------------------------------
+  evaluate_window                       0.005     1.6749  x8574.5
+  serial smart                          0.284     4.0960  x139.8
+  serial exhaust                       39.700     1.6633  baseline
+  OpenMP 8-thread                       6.690     9.8705  x5.9
+
+  Note: GFLOP/s values appear low because N=200 is a small problem.
+  The HPC value lies in the parallelisation strategies, not raw GFLOP/s.
+=================================================================
