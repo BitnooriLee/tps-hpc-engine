@@ -228,51 +228,63 @@ ax.grid(True, which="both", ls=":", alpha=0.35, color="#B0BEC5")
 ax.legend(loc="upper left", fontsize=8, framealpha=0.9)
 
 # ══════════════════════════════════════════════════════════════════════════════
-# RIGHT: Wall-time bar chart
+# RIGHT: Wall-time bar chart — search algorithms only
+# evaluate_window is a building block (1 call), not a full search;
+# comparing it here would be apples-to-oranges, so it is excluded.
 # ══════════════════════════════════════════════════════════════════════════════
 axb.set_facecolor("#F8F9FA")
-labels   = [k["short"] for k in kernels]
-times_ms = [k["time_ms"] for k in kernels]
-colors   = [k["color"]  for k in kernels]
-markers  = [k["marker"] for k in kernels]
 
-y_pos = np.arange(len(kernels))
-bars  = axb.barh(y_pos, times_ms, color=colors, height=0.55,
+# Only the three complete search algorithms
+search_kernels = [k for k in kernels if k["short"] != "evaluate_window"]
+labels   = [k["short"] for k in search_kernels]
+times_ms = [k["time_ms"] for k in search_kernels]
+colors   = [k["color"]  for k in search_kernels]
+
+y_pos = np.arange(len(search_kernels))
+bars  = axb.barh(y_pos, times_ms, color=colors, height=0.5,
                  edgecolor="white", linewidth=1.2)
 
-# Value labels
+# Value labels (right of bar)
 for bar, t in zip(bars, times_ms):
     txt = f"{t:.3f} ms" if t >= 0.1 else f"{t*1000:.1f} µs"
-    axb.text(bar.get_width() * 1.04, bar.get_y() + bar.get_height() / 2,
-             txt, va="center", ha="left", fontsize=8.5, fontweight="bold")
+    axb.text(bar.get_width() * 1.06, bar.get_y() + bar.get_height() / 2,
+             txt, va="center", ha="left", fontsize=9, fontweight="bold")
 
-# Speedup annotations vs serial exhaust baseline
-t_base = kernels[2]["time_ms"]   # serial exhaustive
-for i, k in enumerate(kernels):
-    if k["short"] == "serial exhaust":
-        axb.text(-times_ms[-1] * 0.04, i, "baseline",
-                 va="center", ha="right", fontsize=7.5, color="#555")
+# Speedup vs serial exhaustive (baseline = middle bar)
+t_base = next(k["time_ms"] for k in search_kernels if k["short"] == "serial exhaust")
+for i, k in enumerate(search_kernels):
+    ratio = t_base / k["time_ms"]
+    if abs(ratio - 1.0) < 0.05:
+        tag = "baseline"
+        tag_color = "#555555"
+    elif ratio > 1:
+        tag = f"×{ratio:.0f} faster"
+        tag_color = k["color"]
     else:
-        ratio = t_base / k["time_ms"]
-        prefix = "×" if ratio >= 1 else "×"
-        if ratio >= 1:
-            label = f"×{ratio:.0f} faster"
-        else:
-            label = f"×{1/ratio:.1f} slower"
-        axb.text(-times_ms[-1] * 0.04, i, label,
-                 va="center", ha="right", fontsize=7.5,
-                 color=k["color"], fontweight="bold")
+        tag = f"×{1/ratio:.1f} slower"
+        tag_color = "#888888"
+    axb.text(-max(times_ms) * 0.05, i, tag,
+             va="center", ha="right", fontsize=8, fontweight="bold",
+             color=tag_color)
 
 axb.set_yticks(y_pos)
-axb.set_yticklabels(labels, fontsize=9)
+axb.set_yticklabels(labels, fontsize=9.5)
 axb.set_xlabel("Wall time  [ms]", fontsize=10)
-axb.set_title("Wall-time comparison\n(lower is better)", fontsize=10.5)
+axb.set_title("Full search algorithm comparison\n(same task — find the best window)",
+              fontsize=10)
 axb.set_xscale("log")
-axb.set_xlim(right=times_ms[-2] * 12)   # leave room for labels
+axb.set_xlim(right=max(times_ms) * 8)
 axb.invert_yaxis()
 axb.grid(True, which="both", axis="x", ls=":", alpha=0.4, color="#B0BEC5")
 axb.spines["top"].set_visible(False)
 axb.spines["right"].set_visible(False)
+
+# Footnote explaining evaluate_window position on roofline
+axb.text(0.5, -0.13,
+         "Note: evaluate_window (4.6 µs) is a single-call building block\n"
+         "shown on the roofline only — not a complete search algorithm.",
+         transform=axb.transAxes, ha="center", va="top",
+         fontsize=7.5, color="#666", style="italic")
 
 
 plt.suptitle("TPS HPC Engine — Performance Analysis", fontsize=13,
