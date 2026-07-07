@@ -8,6 +8,36 @@ This project replaces the Python/NumPy analysis core of a TPS thermal conductivi
 
 The analysis engine integrates back into [HD_Intelligent](https://github.com/BitnooriLee/HD_Intelligent) (private) via **pybind11** as a drop-in accelerator — no changes to the Python pipeline required.
 
+## Quick Start (No Hardware, 10 Minutes)
+
+If you only want to verify the engine locally (without lab equipment), run this from repository root:
+
+```bash
+# 1) Configure
+cmake -S . -B build \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DENABLE_OPENMP=ON \
+  -DENABLE_MPI=ON \
+  -DENABLE_PYBIND=ON
+
+# 2) Build (cross-platform)
+cmake --build build --parallel
+
+# 3) Python end-to-end demo (Step 5-7 only)
+PYTHONPATH=build python3 python/demo.py
+
+# 4) Native executables
+./build/tps_serial
+OMP_NUM_THREADS=8 ./build/tps_openmp
+OMP_NUM_THREADS=8 ./build/bench_residual
+mpirun -n 4 ./build/tps_mpi_uq data/example_res_response.txt 1000 0.02
+```
+
+Expected behavior:
+- `python/demo.py` prints one serial result, one OpenMP result, and a TPS summary.
+- `bench_residual` should show OpenMP exhaustive faster than serial exhaustive.
+- `tps_mpi_uq` should print acceptance rate and 95% CI/PI.
+
 ---
 
 ## Data Flow
@@ -43,11 +73,9 @@ The C++ engine is **only responsible for Steps 5–7**. It never touches `.hotb`
 Steps 1–4 require a physical Hot Disk lab setup. For development and benchmarking, `data/example_res_response.txt` provides a representative EXP:RES? response captured from a real measurement. This file feeds directly into Step 5.
 
 ```bash
-# Full Step 5–7 demo via Python bindings (no hardware needed)
-mkdir build && cd build
-cmake .. -DCMAKE_BUILD_TYPE=Release -DENABLE_OPENMP=ON -DENABLE_PYBIND=ON
-make tps_engine
-cd ..
+# Full Step 5-7 demo via Python bindings (no hardware needed)
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DENABLE_OPENMP=ON -DENABLE_PYBIND=ON
+cmake --build build --target tps_engine
 PYTHONPATH=build python3 python/demo.py
 ```
 
@@ -220,13 +248,26 @@ Linux (GCC): OpenMP is bundled; install `libopenmpi-dev` via apt/dnf.
 ### All features
 
 ```bash
-mkdir build && cd build
-cmake .. \
+cmake -S . -B build \
   -DCMAKE_BUILD_TYPE=Release \
   -DENABLE_OPENMP=ON \
   -DENABLE_MPI=ON \
   -DENABLE_PYBIND=ON
-make -j$(nproc)
+cmake --build build --parallel
+```
+
+`cmake --build --parallel` is recommended over `make -j$(nproc)` because it works on macOS and Linux with the active generator.
+
+### Build profiles
+
+```bash
+# Fast local iteration
+cmake -S . -B build-dev -DCMAKE_BUILD_TYPE=RelWithDebInfo -DENABLE_OPENMP=ON -DENABLE_MPI=OFF -DENABLE_PYBIND=ON
+cmake --build build-dev --parallel
+
+# Profiling-focused symbols
+cmake -S . -B build-prof -DCMAKE_BUILD_TYPE=Release -DENABLE_PROFILING=ON -DENABLE_OPENMP=ON -DENABLE_MPI=OFF
+cmake --build build-prof --target bench_profile --parallel
 ```
 
 ### Feature flags
@@ -240,9 +281,64 @@ make -j$(nproc)
 ### Minimal build (serial only, no external deps)
 
 ```bash
-cmake .. -DENABLE_OPENMP=OFF -DENABLE_MPI=OFF -DENABLE_PYBIND=OFF
-make tps_serial bench_residual
+cmake -S . -B build-min -DENABLE_OPENMP=OFF -DENABLE_MPI=OFF -DENABLE_PYBIND=OFF
+cmake --build build-min --target tps_serial bench_residual
 ```
+
+---
+
+## Detailed Runbook
+
+All commands below assume current directory is repository root (`tps-hpc-engine/`).
+
+### 1) Serial baseline
+
+```bash
+./build/tps_serial --n 200 --min-fraction 0.30
+```
+
+Use this to validate the baseline window search behavior quickly.
+
+### 2) OpenMP exhaustive search
+
+```bash
+OMP_NUM_THREADS=8 ./build/tps_openmp --n 200 --min-fraction 0.30
+```
+
+Interpretation tip:
+- `tps_openmp` compares two **different strategies** (serial smart vs OMP exhaustive), so direct speedup may be `< 1x` for small `N`.
+- For fair threading speedup, use `bench_residual` (exhaustive serial vs exhaustive OpenMP).
+
+### 3) Fair performance comparison
+
+```bash
+OMP_NUM_THREADS=8 ./build/bench_residual 200
+```
+
+Typical output includes:
+- serial smart wall-time,
+- serial exhaustive wall-time,
+- OpenMP exhaustive wall-time,
+- and both algorithmic gain + thread-level speedup.
+
+### 4) Python integration path (Step 5-7)
+
+```bash
+PYTHONPATH=build python3 python/demo.py
+```
+
+This emulates the real pipeline handoff from `HD_Intelligent` after parsing `EXP:RES?` into arrays.
+
+### 5) MPI Monte Carlo UQ
+
+```bash
+mpirun -n 4 ./build/tps_mpi_uq data/example_res_response.txt 10000 0.02
+```
+
+Arguments:
+- `data_file`: space-separated `(sqrt_t, dT)` pairs.
+- `n_trials`: total Monte Carlo trials across all ranks.
+- `noise_sigma_K`: Gaussian noise sigma in Kelvin.
 
 ---
 
@@ -275,6 +371,54 @@ t_max = tps_engine.get_max_heating_time(sensor_radius=0.006227, diffusivity=1e-7
 
 ---
 
+## HD_Intelligent Integration Guide
+
+`HD_Intelligent` integration goal: replace NumPy TPS kernel calls with `tps_engine` while keeping upstream instrument/data logic unchanged.
+
+### Integration checklist
+
+1. Build `tps_engine` (`ENABLE_PYBIND=ON`).
+2. Ensure Python process can import it (set `PYTHONPATH` or install wheel/module path).
+3. Keep existing parser (`EXP:RES?` string -> `sqrt_t`, `dT`) unchanged.
+4. Swap analysis call only:
+   - from: legacy NumPy residual/window search
+   - to: `tps_engine.find_best_window_serial(...)` (or OMP variant)
+5. Preserve output contract in app layer (`verdict`, `start/end`, diagnostic flags).
+
+### Minimal adapter pattern
+
+```python
+import tps_engine
+
+def analyze_pairs(sqrt_t, dT, use_omp=False):
+    fn = tps_engine.find_best_window_omp if use_omp else tps_engine.find_best_window_serial
+    res = fn(sqrt_t, dT, min_fraction=0.30)
+    return {
+        "window": (res["start"], res["end"]),
+        "verdict": res["verdict"],
+        "rmse": res["rmse"],
+        "issues": list(res["issues"]),
+        "flags": {
+            "runs_ok": res["runs_ok"],
+            "dw_ok": res["dw_ok"],
+            "hetero_ok": res["hetero_ok"],
+            "trend_ok": res["trend_ok"],
+        },
+    }
+```
+
+### Integration validation steps
+
+- Run one reference dataset through old NumPy path and new C++ path.
+- Compare:
+  - verdict match,
+  - selected window overlap,
+  - RMSE difference tolerance,
+  - downstream conductivity delta (`k`) within agreed tolerance.
+- Log mismatch cases with full diagnostics (`issues`, `selection_note`) for triage.
+
+---
+
 ## Monte Carlo UQ
 
 ```bash
@@ -303,3 +447,19 @@ The Transient Plane Source method determines thermal conductivity by fitting a l
 | Trend | \|Pearson(ε, x)\| < 0.35 | Curvature / systematic drift |
 
 Finding the optimal time window that passes all four tests is the computationally intensive step this engine accelerates.
+
+---
+
+## Troubleshooting
+
+- `ModuleNotFoundError: tps_engine`
+  - Build with `-DENABLE_PYBIND=ON`.
+  - Run with `PYTHONPATH=build`.
+- OpenMP not active on macOS
+  - Install `libomp` via Homebrew.
+  - Reconfigure CMake after installation.
+- `mpirun` not found / MPI target missing
+  - Install Open MPI and build with `-DENABLE_MPI=ON`.
+- Wrong data-file path in MPI run
+  - From repo root use `data/example_res_response.txt`.
+  - From `build/` use `../data/example_res_response.txt`.
