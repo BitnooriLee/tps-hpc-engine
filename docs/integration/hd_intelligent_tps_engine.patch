@@ -1,0 +1,58 @@
+diff --git a/hd_intelligent/analysis/window_selector.py b/hd_intelligent/analysis/window_selector.py
+index 1111111..2222222 100644
+--- a/hd_intelligent/analysis/window_selector.py
++++ b/hd_intelligent/analysis/window_selector.py
+@@
+-import numpy as np
+-from .legacy_residual import find_best_window_numpy
++import tps_engine
+@@
+-def find_best_window(sqrt_t, delta_t, min_fraction=0.30):
+-    """
+-    Legacy NumPy path.
+-    Returns dict with keys:
+-      start, end, verdict, rmse, runs_ok, dw_ok, hetero_ok, trend_ok, issues
+-    """
+-    return find_best_window_numpy(sqrt_t, delta_t, min_fraction=min_fraction)
++def find_best_window(sqrt_t, delta_t, min_fraction=0.30, use_omp=False):
++    """
++    C++ replacement path (pybind11).
++    Output contract intentionally matches legacy NumPy caller expectations.
++    """
++    fn = tps_engine.find_best_window_omp if use_omp else tps_engine.find_best_window_serial
++    res = fn(sqrt_t, delta_t, min_fraction=min_fraction)
++    return {
++        "start": res["start"],
++        "end": res["end"],
++        "verdict": res["verdict"],
++        "rmse": res["rmse"],
++        "runs_ok": res["runs_ok"],
++        "dw_ok": res["dw_ok"],
++        "hetero_ok": res["hetero_ok"],
++        "trend_ok": res["trend_ok"],
++        "issues": list(res["issues"]),
++        "selection_note": res.get("selection_note", ""),
++    }
+
+diff --git a/hd_intelligent/analysis/pipeline.py b/hd_intelligent/analysis/pipeline.py
+index 3333333..4444444 100644
+--- a/hd_intelligent/analysis/pipeline.py
++++ b/hd_intelligent/analysis/pipeline.py
+@@
+-from .legacy_residual import parse_pairs, find_best_window_numpy
++from .legacy_residual import parse_pairs
++from .window_selector import find_best_window
+@@
+-    window = find_best_window_numpy(x_vals, y_vals, min_fraction=0.30)
++    window = find_best_window(x_vals, y_vals, min_fraction=0.30, use_omp=False)
+     # downstream logic unchanged
+     # conductivity estimation, QC flags, report generation ...
+
+diff --git a/hd_intelligent/requirements.txt b/hd_intelligent/requirements.txt
+index 5555555..6666666 100644
+--- a/hd_intelligent/requirements.txt
++++ b/hd_intelligent/requirements.txt
+@@
+ numpy>=1.24
++# tps_engine is a local pybind11 extension module built in tps-hpc-engine/build
++# Load with PYTHONPATH or package wheel in deployment image
